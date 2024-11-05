@@ -5,6 +5,7 @@ import string
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from streamlit_gsheets import GSheetsConnection
+from streamlit_extras.tags import tagger_component
 
 # read in jobs file from live, public Google Sheet
 url = 'https://docs.google.com/spreadsheets/d/1NBLoHTX_H6lNMNIn79YDncOa384fjgNGQQpFcIWDxTs/edit?usp=sharing'
@@ -115,8 +116,32 @@ with tab1:
             opportunity = row['Opportunity Name']
             link = row['Link']
 
-            tile = st.container(height = 100)
-            tile.markdown('**' + agency + '  |  [' + opportunity + '](' + link + ')**')
+            colors = []
+
+            education_tags = row['Education Level'].split(',')
+            for x in education_tags:
+                colors.append('blue')
+
+            citizenship_tags = row['Citizenship Eligibility'].split(',')
+            for x in citizenship_tags:
+                colors.append('yellow')
+
+            st.markdown('**' + agency + '  |  [' + opportunity + '](' + link + ')**')
+
+            tags = education_tags + citizenship_tags + [row['Category']]
+            tag_cols = colors + ['pink']
+
+            tagger_component('', tags, color_name = tag_cols)
+
+            st.divider()
+    
+    with tab3:
+        '''
+        to do:
+        - make sure Google connection works
+        - add copy to this About page
+        - add filters to All Jobs
+        '''
 
     
 
