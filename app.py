@@ -6,6 +6,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from streamlit_gsheets import GSheetsConnection
 from streamlit_extras.tags import tagger_component
+from streamlit_dynamic_filters import DynamicFilters
 
 # read in jobs file from live, public Google Sheet
 url = 'https://docs.google.com/spreadsheets/d/1NBLoHTX_H6lNMNIn79YDncOa384fjgNGQQpFcIWDxTs/edit?usp=sharing'
@@ -34,6 +35,19 @@ def extract_text_from_pdf(pdf_file):
     for page in reader.pages:
         text += page.extract_text()
     return text
+
+def unique_choices(df_column):
+    init = []
+    for x in df_column:
+        val = x.split(', ')
+        for y in val:
+            if y not in init:
+                init.append(y)
+    return init
+
+unique_citizenship = unique_choices(jobs['Citizenship Eligibility'])
+unique_education = unique_choices(jobs['Education Level'])
+unique_category = unique_choices(jobs['Category'])
 
 # organize streamlit app into tabs
 tab1, tab2, tab3 = st.tabs(['Resume Match', 'All Jobs', 'About Us'])
@@ -109,6 +123,43 @@ with tab1:
                 st.markdown(row['Description'])
 
     with tab2:
+
+        # dynamic_filters = DynamicFilters(jobs, filters=['Citizenship Eligibility', 
+        #                                                 'Education Level', 'Category'])
+
+        # dynamic_filters.display_filters(location='columns', num_columns=3)
+
+        # jobs = dynamic_filters.filter_df()
+        # sep = ', '
+        # jobs['Selections'] = jobs['Category'] + sep + jobs['Citizenship Eligibility'] + sep + jobs['Education Level']
+        jobs['Category'] = [x.split(', ') for x in jobs.Category]
+        jobs['Citizenship Eligibility'] = [x.split(', ') for x in jobs['Citizenship Eligibility']]
+        jobs['Education Level'] = [x.split(', ') for x in jobs['Education Level']]
+        st.dataframe(jobs)
+
+        jobs_index = []
+        filter1, filter2, filter3 = st.columns(3)
+
+        with filter1:
+            d = {}
+            box = st.expander('Eligibility')
+            with box:
+                for i in range(len(unique_citizenship)):
+                    d['choice{}'.format(i)] = st.checkbox(unique_citizenship[i])
+        with filter2:
+            box = st.expander('Applicant Type')
+            with box:
+                for x in unique_education:
+                    choice = st.checkbox(x)
+        with filter3:
+            box = st.expander('Category')
+            with box:
+                for x in unique_category:
+                    choice = st.checkbox(x)
+
+        
+        st.subheader('Results')
+
         # job listings
         for i, row in jobs.iterrows():
             agency = row['Agency']
@@ -116,28 +167,27 @@ with tab1:
             link = row['Link']
 
             colors = []
+            for x in row['Education Level']:
+                colors.append('#06beea')
 
-            education_tags = row['Education Level'].split(',')
-            for x in education_tags:
-                colors.append('blue')
+            for x in row['Citizenship Eligibility']:
+                colors.append('#ffd909')
 
-            citizenship_tags = row['Citizenship Eligibility'].split(',')
-            for x in citizenship_tags:
-                colors.append('yellow')
-
-            st.markdown('**' + agency + '  |  [' + opportunity + '](' + link + ')**')
-            tags = education_tags + citizenship_tags + [row['Category']]
-            tag_cols = colors + ['pink']
-            tagger_component('', tags, color_name = tag_cols)
-
-            st.divider()
+            with st.container(border=True):
+                st.markdown('**' + agency + '  |  [' + opportunity + '](' + link + ')**')
+                tags = row['Education Level'] + row['Citizenship Eligibility'] + row['Category']
+                tag_cols = colors + ['#3bb273']
+                tagger_component('', tags, color_name = tag_cols)
     
     with tab3:
         '''
         to do:
-        - make sure Google connection works
         - add copy to this About page
-        - add filters to All Jobs
+            - TOP summary
+            - problem statement
+            - user research
+            - timeline
+            - future enhancements
         '''
 
     
