@@ -4,8 +4,12 @@ from PyPDF2 import PdfReader
 import string
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-# from streamlit_gsheets import GSheetsConnection
+from streamlit_gsheets import GSheetsConnection
 
+# read in jobs file from live, public Google Sheet
+url = 'https://docs.google.com/spreadsheets/d/1NBLoHTX_H6lNMNIn79YDncOa384fjgNGQQpFcIWDxTs/edit?usp=sharing'
+conn = st.connection("gsheets", type=GSheetsConnection)
+jobs = conn.read(spreadsheet=url)
 
 def get_similarity_score(resume_text, job_description):
     # Create a CountVectorizer instance to transform text into word frequency vectors
@@ -25,7 +29,7 @@ def get_similarity_score(resume_text, job_description):
 
 def extract_text_from_pdf(pdf_file):
     reader = PdfReader(pdf_file)
-    text = ""
+    text = ''
     for page in reader.pages:
         text += page.extract_text()
     return text
@@ -46,68 +50,74 @@ with tab1:
         
         with col1:
         
-            citizenship = st.selectbox("Eligibility", 
-                ["US Citizen", "Permanent Resident", "International Student", "Other"])
+            citizenship = st.selectbox('Eligibility', 
+                ['All', 'US Citizen', 'Permanent Resident', 'International Student'])
         
         with col2:
             
-            applicant_type = st.selectbox("Applicant Type", [
-                "High School", 
-                "Undergraduate",
-                "Graduate",
-                "PhD", 
-                "Postdoctoral"
+            applicant_type = st.selectbox('Applicant Type', [
+                'All', 'High School', 'Undergraduate',
+                'Graduate', 'PhD', 'Postdoctoral'
             ])
         
-        jobs = pd.read_csv("jobs.csv", encoding='latin-1')
         
-        # filter jobs based on citizenship selection
+        # filter jobs based on user selection
         filter_index = []
         
         for i, row in jobs.iterrows():
-            check1 = row['Citizenship Eligibility']
-            check2 = row['Education Level']
+            check1 = [row['Citizenship Eligibility']]
+            check2 = [row['Education Level']]
             if citizenship in check1 and applicant_type in check2:
                 filter_index.append(i)
             elif citizenship == 'Unspecified' and applicant_type in check2:
                 filter_index.append(i)
+            elif citizenship == 'All' and applicant_type in check2:
+                filter_index.append(i)
+            elif citizenship in check1 and applicant_type == 'All':
+                filter_index.append(i)
+            elif citizenship == 'All' and applicant_type == 'All':
+                filter_index.append(i)
         
-                
         user = jobs.iloc[filter_index]
         user = user.dropna(subset='Description').reset_index(drop = True)
         
-    
-        
-        # create count of words in resume
         resume_text = extract_text_from_pdf(resume_pdf)
         resume_text = resume_text.replace('\n', '')
         
         for c in string.punctuation:
             resume_text = resume_text.replace(c, ' ')
-        
-            
+
         user['Score'] = [get_similarity_score(resume_text, row['Description'])
                          for i, row in user.iterrows()]
         
         # filter user to top 3 jobs
         user = user.sort_values(by = 'Score', ascending = False).reset_index(drop = True)
-        
         user_result = user.head(3)
-        
-        # st.data_editor(
-        #     user_result,
-        #     column_config={'Link': st.column_config.LinkColumn('Link')},
-        #     hide_index = True)
         
         st.divider()
         st.subheader('Top Internship Matches:')
     
         for i, row in user_result.iterrows():
-            label = row['Agency'] + ' | ' + row['Opportunity Name']
-            listing = st.expander(label).write(row['Description'])
+            agency = row['Agency']
+            opportunity = row['Opportunity Name']
+            link = row['Link']
+
+            # create container for each result
+            with st.container(height = 150):
+                st.markdown('**' + str(i+1)+ '.  ' + agency + ' | [' + opportunity+ '](' +link+ ')**')
+                st.markdown(row['Description'])
 
     
-    
+    with tab2:
+        for i, row in jobs.iterrows():
+
+            agency = row['Agency']
+            opportunity = row['Opportunity Name']
+            link = row['Link']
+
+            tile = st.container(height = 100)
+            tile.markdown('**' + agency + '  |  [' + opportunity + '](' + link + ')**')
+
     
 
 
