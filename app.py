@@ -123,42 +123,86 @@ with tab1:
                 st.markdown(row['Description'])
 
     with tab2:
-
-        # dynamic_filters = DynamicFilters(jobs, filters=['Citizenship Eligibility', 
-        #                                                 'Education Level', 'Category'])
-
-        # dynamic_filters.display_filters(location='columns', num_columns=3)
-
-        # jobs = dynamic_filters.filter_df()
-        # sep = ', '
-        # jobs['Selections'] = jobs['Category'] + sep + jobs['Citizenship Eligibility'] + sep + jobs['Education Level']
         jobs['Category'] = [x.split(', ') for x in jobs.Category]
         jobs['Citizenship Eligibility'] = [x.split(', ') for x in jobs['Citizenship Eligibility']]
         jobs['Education Level'] = [x.split(', ') for x in jobs['Education Level']]
-        st.dataframe(jobs)
 
         jobs_index = []
         filter1, filter2, filter3 = st.columns(3)
 
         with filter1:
-            d = {}
+            d1 = {}
             box = st.expander('Eligibility')
             with box:
-                for i in range(len(unique_citizenship)):
-                    d['choice{}'.format(i)] = st.checkbox(unique_citizenship[i])
+                for x in unique_citizenship:
+                    d1['{}'.format(x)] = st.checkbox(x, key = x)
         with filter2:
+            d2 = {}
             box = st.expander('Applicant Type')
             with box:
                 for x in unique_education:
-                    choice = st.checkbox(x)
+                    d2['{}'.format(x)] = st.checkbox(x, key = x)
         with filter3:
+            d3 = {}
             box = st.expander('Category')
             with box:
                 for x in unique_category:
-                    choice = st.checkbox(x)
+                    d3['{}'.format(x)] = st.checkbox(x, key = x)
 
-        
         st.subheader('Results')
+
+        d1_select = {k for k,v in d1.items() if v}
+        d2_select = {k for k,v in d2.items() if v}
+        d3_select = {k for k,v in d3.items() if v}
+
+        jobs1 = []
+        jobs2 = []
+        jobs3 = []
+        for i, row in jobs.iterrows():
+            for val in row['Citizenship Eligibility']:
+                if val in d1_select:
+                    jobs1.append(i)
+            for val in row['Education Level']:
+                if val in d2_select:
+                    jobs2.append(i)
+            for val in row.Category:
+                if val in d3_select:
+                    jobs3.append(i)
+
+        for i in range(len(jobs)):
+            if len(jobs1) == 0 and len(jobs2) == 0 and len(jobs3) == 0:
+                jobs_index.append(i)
+            elif len(jobs1) == 0 and i in jobs2 and i in jobs3:
+                jobs_index.append(i)
+            elif i in jobs1 and i in jobs2 and i in jobs3:
+                jobs_index.append(i)
+        
+        for i in range(len(jobs)):
+            if len(jobs1) == 0:
+                if len(jobs2) == 0:
+                    if len(jobs3) == 0:
+                        jobs_index.append(i)
+                    else:
+                        jobs_index = jobs3
+                elif len(jobs2) != 0:
+                    if len(jobs3) == 0:
+                        jobs_index = jobs2
+                    elif i in jobs2 and i in jobs3:
+                        jobs_index.append(i)
+            else:
+                if len(jobs2) == 0:
+                    if len(jobs3) == 0:
+                        jobs_index = jobs1
+                    elif i in jobs1 and i in jobs3:
+                        jobs_index.append(i)
+                else:
+                    if len(jobs3) == 0:
+                        if i in jobs1 and i in jobs2:
+                            jobs_index.append(i)
+                    elif i in jobs1 and i in jobs2 and i in jobs3:
+                        jobs_index.append(i)
+
+        jobs = jobs.iloc[jobs_index]
 
         # job listings
         for i, row in jobs.iterrows():
@@ -175,7 +219,10 @@ with tab1:
 
             with st.container(border=True):
                 st.markdown('**' + agency + '  |  [' + opportunity + '](' + link + ')**')
-                tags = row['Education Level'] + row['Citizenship Eligibility'] + row['Category']
+                if(len(row['Category'])) == 2:
+                    tags = row['Education Level'] + row['Citizenship Eligibility'] + row['Category'][:1]
+                else:
+                    tags = row['Education Level'] + row['Citizenship Eligibility'] + row['Category']
                 tag_cols = colors + ['#3bb273']
                 tagger_component('', tags, color_name = tag_cols)
     
@@ -189,16 +236,4 @@ with tab1:
             - timeline
             - future enhancements
         '''
-
-    
-
-
-
-
-
-
-
-
-
-
 
