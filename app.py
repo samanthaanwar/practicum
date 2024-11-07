@@ -66,40 +66,33 @@ with tab1:
         col1, col2 = st.columns(2)
         with col1:
             citizenship = st.selectbox('Eligibility', 
-                ['All', 'US Citizen', 'Permanent Resident', 
-                'International Student'])
+            ['All']+unique_citizenship)
         with col2:
-            applicant_type = st.selectbox('Applicant Type', [
-                'All', 'High School', 'Undergraduate',
-                'Graduate', 'PhD', 'Postdoctoral'
-            ])
+            applicant_type = st.selectbox('Applicant Type', 
+            ['All'] + unique_education)
         
         # filter jobs based on user selection
         filter_index = []
         
         for i, row in jobs.iterrows():
-            check1 = [row['Citizenship Eligibility']]
-            check2 = [row['Education Level']]
-            if citizenship in check1 and applicant_type in check2:
-                filter_index.append(i)
-            elif citizenship == 'Unspecified' and applicant_type in check2:
-                filter_index.append(i)
-            elif citizenship == 'All' and applicant_type in check2:
-                filter_index.append(i)
-            elif citizenship in check1 and applicant_type == 'All':
-                filter_index.append(i)
-            elif citizenship == 'All' and applicant_type == 'All':
-                filter_index.append(i)
+            if citizenship == 'All':
+                if applicant_type == 'All':
+                    filter_index.append(i)
+                elif applicant_type in row['Education Level']:
+                    filter_index.append(i)
+            else:
+                if applicant_type == 'All':
+                    if citizenship in row['Citizenship Eligibility']:
+                        filter_index.append(i)
+                else:
+                    if citizenship in row['Citizenship Eligibility'] and applicant_type in row['Education Level']:
+                        filter_index.append(i)
         
         user = jobs.iloc[filter_index]
         user = user.dropna(subset='Description').reset_index(drop = True)
         
         # clean up resume text, replace punctuation
         resume_text = extract_text_from_pdf(resume_pdf)
-        resume_text = resume_text.replace('\n', '')
-        
-        for c in string.punctuation:
-            resume_text = resume_text.replace(c, ' ')
 
         # compare against JDs to get a score
         user['Score'] = [get_similarity_score(resume_text, row['Description'])
@@ -107,6 +100,7 @@ with tab1:
         
         # filter user to top 3 scoring jobs
         user = user.sort_values(by = 'Score', ascending = False).reset_index(drop = True)
+        st.dataframe(user)
         user_result = user.head(3)
         
         st.divider()
@@ -120,6 +114,7 @@ with tab1:
             # create container for each result
             with st.container(height = 150):
                 st.markdown('**' + str(i+1)+ '.  ' + agency + ' | [' + opportunity+ '](' +link+ ')**')
+                st.write('Score: ', row['Score'])
                 st.markdown(row['Description'])
 
 with tab2:
