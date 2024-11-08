@@ -100,7 +100,7 @@ with tab1:
         
         # filter user to top 3 scoring jobs
         user = user.sort_values(by = 'Score', ascending = False).reset_index(drop = True)
-        st.dataframe(user)
+
         user_result = user.head(3)
         
         st.divider()
