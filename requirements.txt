@@ -5,3 +5,5 @@ PyPDF2
 scikit-learn
 streamlit-extras
 streamlit-dynamic-filters
+openai
+numpy
