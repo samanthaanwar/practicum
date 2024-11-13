@@ -15,20 +15,49 @@ url = 'https://docs.google.com/spreadsheets/d/1NBLoHTX_H6lNMNIn79YDncOa384fjgNGQ
 conn = st.connection("gsheets", type=GSheetsConnection)
 jobs = conn.read(spreadsheet=url)
 
-def get_similarity_score(resume_text, job_description):
-    # create a CountVectorizer instance to transform text into word frequency vectors
-    vectorizer = CountVectorizer().fit([resume_text, job_description])
+# def get_similarity_score(resume_text, job_description):
+#     # create a CountVectorizer instance to transform text into word frequency vectors
+#     vectorizer = CountVectorizer().fit([resume_text, job_description])
     
-    # transform both texts into frequency vectors
-    resume_vector = vectorizer.transform([resume_text])
-    job_vector = vectorizer.transform([job_description])
+#     # transform both texts into frequency vectors
+#     resume_vector = vectorizer.transform([resume_text])
+#     job_vector = vectorizer.transform([job_description])
     
-    # compute cosine similarity between the resume and job description vectors
-    similarity_matrix = cosine_similarity(resume_vector, job_vector)
+#     # compute cosine similarity between the resume and job description vectors
+#     similarity_matrix = cosine_similarity(resume_vector, job_vector)
     
-    # extract similarity score as a percentage
-    similarity_score = similarity_matrix[0, 0] * 100  # convert to percentage
-    return round(similarity_score, 2)
+#     # extract similarity score as a percentage
+#     similarity_score = similarity_matrix[0, 0] * 100  # convert to percentage
+#     return round(similarity_score, 2)
+
+# Set your OpenAI API key
+openai.api_key = st.secrets["OPENAI_API_KEY"]
+
+# Function to get embeddings from OpenAI API
+def get_embedding(text, model="text-embedding-ada-002"):
+    response = openai.Embedding.create(input=text, model=model)
+    return response['data'][0]['embedding']
+
+# Function to calculate similarity score using AI embeddings
+def get_similarity_score(resume_text, job_descriptions):
+    # Get embedding for the resume
+    resume_embedding = np.array(get_embedding(resume_text))
+    
+    # Calculate similarity scores for each job description
+    scores = []
+    for job_desc in job_descriptions:
+        job_embedding = np.array(get_embedding(job_desc))
+        similarity = cosine_similarity([resume_embedding], [job_embedding])[0][0]
+        scores.append(similarity)
+    
+    # Pair each job description with its similarity score
+    job_scores = list(zip(job_descriptions, scores))
+    
+    # Sort by similarity score in descending order
+    job_scores.sort(key=lambda x: x[1], reverse=True)
+    
+    # Return the top three matches
+    return job_scores[:3]
 
 
 def extract_text_from_pdf(pdf_file):
@@ -96,28 +125,35 @@ with tab1:
         # clean up resume text, replace punctuation
         resume_text = extract_text_from_pdf(resume_pdf)
 
-        # compare against JDs to get a score
-        user['Score'] = [get_similarity_score(resume_text, row['Description'])
-                         for i, row in user.iterrows()]
+        # # compare against JDs to get a score
+        # user['Score'] = [get_similarity_score(resume_text, row['Description'])
+        #                  for i, row in user.iterrows()]
         
-        # filter user to top 3 scoring jobs
-        user = user.sort_values(by = 'Score', ascending = False).reset_index(drop = True)
+        # # filter user to top 3 scoring jobs
+        # user = user.sort_values(by = 'Score', ascending = False).reset_index(drop = True)
 
-        user_result = user.head(3)
+        # user_result = user.head(3)
         
-        st.divider()
-        st.subheader('Top Internship Matches:')
+        # st.divider()
+        # st.subheader('Top Internship Matches:')
     
-        for i, row in user_result.iterrows():
-            agency = row['Agency']
-            opportunity = row['Opportunity Name']
-            link = row['Link']
+        # for i, row in user_result.iterrows():
+        #     agency = row['Agency']
+        #     opportunity = row['Opportunity Name']
+        #     link = row['Link']
 
-            # create container for each result
-            with st.container(height = 150):
-                st.markdown('**' + str(i+1)+ '.  ' + agency + ' | [' + opportunity+ '](' +link+ ')**')
-                st.write('Score: ', row['Score'])
-                st.markdown(row['Description'])
+        #     # create container for each result
+        #     with st.container(height = 150):
+        #         st.markdown('**' + str(i+1)+ '.  ' + agency + ' | [' + opportunity+ '](' +link+ ')**')
+        #         st.write('Score: ', row['Score'])
+        #         st.markdown(row['Description'])
+        job_descriptions = user.Description
+        top_matches = get_similarity_score(resume_text, job_descriptions)
+        
+        st.write("Top Matching Jobs:")
+        for i, (job_desc, score) in enumerate(top_matches, start=1):
+            st.write(f"**Match {i}:** {job_desc}")
+            st.write(f"**Score:** {round(score * 100, 2)}%")
 
 with tab2:
     jobs['Category'] = [x.split(', ') for x in jobs.Category]
