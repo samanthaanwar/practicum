@@ -126,6 +126,13 @@ with tab2:
     jobs['Citizenship Eligibility'] = [x.split(', ') for x in jobs['Citizenship Eligibility']]
     jobs['Education Level'] = [x.split(', ') for x in jobs['Education Level']]
 
+    # add sorting options
+    # sort_box = st.expander('Sort jobs by')
+    # with sort_box:
+    #     sort_select = st.radio('Sort', ['Alphabet', 'Deadline'], label_visibility='hidden')
+    
+    # select2 = st.radio('Sort', ['A-Z', 'Deadline'])
+    
     jobs_index = []
     filter1, filter2, filter3 = st.columns(3)
 
@@ -148,6 +155,12 @@ with tab2:
             for x in unique_category:
                 d3['{}'.format(x)] = st.checkbox(x, key = x)
 
+    sort_select = st.radio('Sort results by', ['Alphabet', 'Deadline'])
+    if sort_select == 'Alphabet':
+        jobs = jobs.sort_values(by = 'Opportunity Name')
+    else:
+        jobs = jobs.sort_values(by = 'Deadline')
+        
     st.subheader('Results')
 
     d1_select = {k for k,v in d1.items() if v}
