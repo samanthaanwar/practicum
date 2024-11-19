@@ -7,8 +7,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 from streamlit_gsheets import GSheetsConnection
 from streamlit_extras.tags import tagger_component
 from streamlit_dynamic_filters import DynamicFilters
-import openai
-import numpy as np
 
 # read in jobs file from live, public Google Sheet
 url = 'https://docs.google.com/spreadsheets/d/1NBLoHTX_H6lNMNIn79YDncOa384fjgNGQQpFcIWDxTs/edit?usp=sharing'
