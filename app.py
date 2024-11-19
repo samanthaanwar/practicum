@@ -7,6 +7,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 from streamlit_gsheets import GSheetsConnection
 from streamlit_extras.tags import tagger_component
 from streamlit_dynamic_filters import DynamicFilters
+from datetime import date
+from datetime import datetime
 
 # read in jobs file from live, public Google Sheet
 url = 'https://docs.google.com/spreadsheets/d/1NBLoHTX_H6lNMNIn79YDncOa384fjgNGQQpFcIWDxTs/edit?usp=sharing'
@@ -48,9 +50,11 @@ def unique_choices(df_column):
 unique_citizenship = unique_choices(jobs['Citizenship Eligibility'])
 unique_education = unique_choices(jobs['Education Level'])
 unique_category = unique_choices(jobs['Category'])
+unique_agency = sorted(unique_choices(jobs.Agency))
+unique_agency += ['Other']
 
 # organize streamlit app into tabs
-tab1, tab2, tab3 = st.tabs(['Resume Match', 'All Jobs', 'About Us'])
+tab1, tab2, tab3, tab4 = st.tabs(['Resume Match', 'All Jobs', 'About Us', 'Post a Job'])
 
 with tab1:
 
@@ -190,13 +194,21 @@ with tab2:
                     jobs_index.append(i)
 
     jobs = jobs.iloc[jobs_index]
+    # convert Deadline col into datetime object
+    jobs.Deadline = [datetime.strptime(date_str, '%m/%d/%Y').date() for date_str in jobs.Deadline]
+
+    # filter for jobs due after today
+    jobs = jobs.loc[jobs.Deadline > date.today()]
 
     # job listings
     for i, row in jobs.iterrows():
         agency = row['Agency']
         opportunity = row['Opportunity Name']
         link = row['Link']
-
+        deadline = row['Deadline']
+        days_left = (deadline-date.today()).days
+        deadline_str = deadline.strftime('%b %d, %Y')
+        
         colors = []
         for x in row['Education Level']:
             colors.append('#06beea')
@@ -206,11 +218,12 @@ with tab2:
 
         with st.container(border=True):
             st.markdown('**' + agency + '  |  [' + opportunity + '](' + link + ')**')
-            if(len(row['Category'])) == 2:
-                tags = row['Education Level'] + row['Citizenship Eligibility'] + row['Category'][:1]
+            tags = row['Education Level'] + row['Citizenship Eligibility'] + row['Category'][:1]
+            if days_left < 8:
+                tags.append(f'App due in {days_left} days')
             else:
-                tags = row['Education Level'] + row['Citizenship Eligibility'] + row['Category']
-            tag_cols = colors + ['#3bb273']
+                tags.append('Due '+deadline_str)
+            tag_cols = colors + ['#3bb273','red']
             tagger_component('', tags, color_name = tag_cols)
 
 with tab3:
@@ -224,3 +237,20 @@ with tab3:
         - future enhancements
     '''
 
+with tab4:
+    st.title('Add a job to our database.')
+    st.write('If you want your federal internship opportunity to be included in this dataset, fill out the form below!')
+    st.write('Thank you for your contribution.')
+
+    st.write('**still in progress:** adding functionality to write to Google Sheet')
+
+    with st.form('post_job'):
+        name = st.text_input('Opportunity Name')
+        agency = st.selectbox('Agency', unique_agency)
+        citizenship = st.selectbox('Eligibility', unique_citizenship)
+        education = st.selectbox('Applicant Type', unique_education)
+        category = st.multiselect('Category', unique_category)
+        link = st.text_input('Link to application')
+        deadline = st.date_input('Deadline', value=None)
+        descr = st.text_area('Role description')
+        submitted = st.form_submit_button("Submit")
