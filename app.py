@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 from PyPDF2 import PdfReader
-import string
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from streamlit_gsheets import GSheetsConnection
@@ -54,7 +53,7 @@ unique_agency = sorted(unique_choices(jobs.Agency))
 unique_agency += ['Other']
 
 # organize streamlit app into tabs
-tab1, tab2, tab3, tab4 = st.tabs(['Resume Match', 'All Jobs', 'About Us', 'Post a Job'])
+tab1, tab2, tab3 = st.tabs(['Resume Match', 'All Jobs', 'Post a Job'])
 
 with tab1:
 
@@ -166,7 +165,8 @@ with tab2:
     d1_select = {k for k,v in d1.items() if v}
     d2_select = {k for k,v in d2.items() if v}
     d3_select = {k for k,v in d3.items() if v}
-
+    
+    # filter results
     jobs1 = []
     jobs2 = []
     jobs3 = []
@@ -207,6 +207,7 @@ with tab2:
                     jobs_index.append(i)
 
     jobs = jobs.iloc[jobs_index]
+
     # convert Deadline col into datetime object
     jobs.Deadline = [datetime.strptime(date_str, '%m/%d/%Y').date() for date_str in jobs.Deadline]
 
@@ -232,38 +233,53 @@ with tab2:
         with st.container(border=True):
             st.markdown('**' + agency + '  |  [' + opportunity + '](' + link + ')**')
             tags = row['Education Level'] + row['Citizenship Eligibility'] + row['Category'][:1]
-            if days_left < 8:
+            if days_left < 15:
                 tags.append(f'App due in {days_left} days')
+                colors += ['#3bb273','red']
             else:
                 tags.append('Due '+deadline_str)
-            tag_cols = colors + ['#3bb273','red']
-            tagger_component('', tags, color_name = tag_cols)
+                colors += ['#3bb273','orange']
+            tagger_component('', tags, color_name = colors)
 
 with tab3:
-    '''
-    to do:
-    - add copy to this About page
-        - TOP summary
-        - problem statement
-        - user research
-        - timeline
-        - future enhancements
-    '''
 
-with tab4:
     st.title('Add a job to our database.')
     st.write('If you want your federal internship opportunity to be included in this dataset, fill out the form below!')
     st.write('Thank you for your contribution.')
 
-    st.write('**still in progress:** adding functionality to write to Google Sheet')
-
     with st.form('post_job'):
         name = st.text_input('Opportunity Name')
         agency = st.selectbox('Agency', unique_agency)
-        citizenship = st.selectbox('Eligibility', unique_citizenship)
-        education = st.selectbox('Applicant Type', unique_education)
-        category = st.multiselect('Category', unique_category)
+        citizenship = st.multiselect('Eligibility', unique_citizenship)
+        education = st.multiselect('Applicant Type', unique_education)
+        category = st.selectbox('Category', unique_category)
         link = st.text_input('Link to application')
         deadline = st.date_input('Deadline', value=None)
         descr = st.text_area('Role description')
         submitted = st.form_submit_button("Submit")
+
+        # transform into strings
+        citizenship = ", ".join(citizenship)
+        education = ", ".join(education)
+    
+        if submitted:
+            # add row to jobs dataframe
+            new_row = {
+                'Agency':agency, 
+                'Opportunity Name': name,
+                'Citizenship Eligibility': citizenship,
+                'Education Level': education,
+                'Category': category,
+                'Link': link,
+                'Description': descr,
+                'Deadline': deadline
+            }
+
+            new_row_df = pd.DataFrame(new_row, index=[0])          
+            jobs = pd.concat([jobs, new_row_df], ignore_index=True)
+
+            st.write('Job added. Thank you!')
+
+            with tab2:
+                jobs = jobs
+            
