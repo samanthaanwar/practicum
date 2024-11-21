@@ -14,6 +14,12 @@ url = 'https://docs.google.com/spreadsheets/d/1NBLoHTX_H6lNMNIn79YDncOa384fjgNGQ
 conn = st.connection("gsheets", type=GSheetsConnection)
 jobs = conn.read(spreadsheet=url)
 
+def clean_jobs(df):
+    df['Category'] = [x.split(', ') for x in df.Category]
+    df['Citizenship Eligibility'] = [x.split(', ') for x in df['Citizenship Eligibility']]
+    df['Education Level'] = [x.split(', ') for x in df['Education Level']]
+    df['Deadline'] = [datetime.strptime(date_str, '%m/%d/%Y').date() for date_str in df['Deadline']]
+
 def get_similarity_score(resume_text, job_description):
     # create a CountVectorizer instance to transform text into word frequency vectors
     vectorizer = CountVectorizer().fit([resume_text, job_description])
@@ -51,6 +57,8 @@ unique_education = unique_choices(jobs['Education Level'])
 unique_category = unique_choices(jobs['Category'])
 unique_agency = sorted(unique_choices(jobs.Agency))
 unique_agency += ['Other']
+
+clean_jobs(jobs)
 
 # organize streamlit app into tabs
 tab1, tab2, tab3 = st.tabs(['Resume Match', 'All Jobs', 'Post a Job'])
@@ -121,17 +129,7 @@ with tab1:
                 st.markdown(row['Description'])
 
 with tab2:
-    jobs['Category'] = [x.split(', ') for x in jobs.Category]
-    jobs['Citizenship Eligibility'] = [x.split(', ') for x in jobs['Citizenship Eligibility']]
-    jobs['Education Level'] = [x.split(', ') for x in jobs['Education Level']]
-
-    # add sorting options
-    # sort_box = st.expander('Sort jobs by')
-    # with sort_box:
-    #     sort_select = st.radio('Sort', ['Alphabet', 'Deadline'], label_visibility='hidden')
-    
-    # select2 = st.radio('Sort', ['A-Z', 'Deadline'])
-    
+    jobs = st.session_state.jobs
     jobs_index = []
     filter1, filter2, filter3 = st.columns(3)
 
@@ -208,9 +206,6 @@ with tab2:
 
     jobs = jobs.iloc[jobs_index]
 
-    # convert Deadline col into datetime object
-    jobs.Deadline = [datetime.strptime(date_str, '%m/%d/%Y').date() for date_str in jobs.Deadline]
-
     # filter for jobs due after today
     jobs = jobs.loc[jobs.Deadline > date.today()]
 
@@ -234,7 +229,7 @@ with tab2:
             st.markdown('**' + agency + '  |  [' + opportunity + '](' + link + ')**')
             tags = row['Education Level'] + row['Citizenship Eligibility'] + row['Category'][:1]
             if days_left < 15:
-                tags.append(f'App due in {days_left} days')
+                tags.append(f'App due in {days_left} day(s)')
                 colors += ['#3bb273','red']
             else:
                 tags.append('Due '+deadline_str)
@@ -275,11 +270,9 @@ with tab3:
                 'Deadline': deadline
             }
 
-            new_row_df = pd.DataFrame(new_row, index=[0])          
-            jobs = pd.concat([jobs, new_row_df], ignore_index=True)
+            new_row_df = pd.DataFrame(new_row, index=[0])
+            clean_jobs(new_row_df)          
+            updated_jobs = pd.concat([jobs, new_row_df], ignore_index=True)
 
             st.write('Job added. Thank you!')
-
-            with tab2:
-                jobs = jobs
-            
+            st.session_state.jobs = updated_jobs
