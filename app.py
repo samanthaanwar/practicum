@@ -18,7 +18,7 @@ def clean_jobs(df):
     df['Category'] = [x.split(', ') for x in df.Category]
     df['Citizenship Eligibility'] = [x.split(', ') for x in df['Citizenship Eligibility']]
     df['Education Level'] = [x.split(', ') for x in df['Education Level']]
-    df['Deadline'] = [datetime.strptime(date_str, '%m/%d/%Y').date() for date_str in df['Deadline']]
+    
 
 def get_similarity_score(resume_text, job_description):
     # create a CountVectorizer instance to transform text into word frequency vectors
@@ -129,7 +129,13 @@ with tab1:
                 st.markdown(row['Description'])
 
 with tab2:
-    jobs = st.session_state.jobs
+
+    if 'jobs' not in st.session_state:
+        st.session_state.jobs = jobs
+        jobs['Deadline'] = [datetime.strptime(date_str, '%m/%d/%Y').date() for date_str in jobs['Deadline']]
+    else:
+        jobs = st.session_state.jobs
+
     jobs_index = []
     filter1, filter2, filter3 = st.columns(3)
 
